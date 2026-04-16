@@ -17,4 +17,3 @@ authRouter.get("/verify-email", verifyEmail )
 authRouter.post("/resend-email", ResendEmail)
 
 export default authRouter
-
