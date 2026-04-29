@@ -1,7 +1,8 @@
 import { initializeSocketConnection } from "../service/chat.socket";
-import { sendMessage, getChats, getMessages, deleteChat } from "../service/chat.api";
+import { sendMessage, getChats, getMessages, deleteChat, logout } from "../service/chat.api";
 import { setChats, setCurrentChatId, setError, setLoading, createNewChat, addNewMessage, addMessages, removeChat, replaceChatId } from "../chat.slice";
 import { useDispatch } from "react-redux";
+import { setUser } from "../../auth/auth.slice";
 
 
 export const useChat = () => {
@@ -9,7 +10,7 @@ export const useChat = () => {
     const dispatch = useDispatch()
 
 
-    async function handleSendMessage({ message, chatId }) {
+    async function handleSendMessage({ message, chatId, mode = "normal",focus = "web"}) {
         let activeChatId = chatId;
         const isNewChat = !chatId;
 
@@ -31,14 +32,14 @@ export const useChat = () => {
 
         try {
             dispatch(setLoading(true))
-            const data = await sendMessage({ message, chatId: isNewChat ? null : chatId })
+            const data = await sendMessage({ message, chatId: isNewChat ? null : chatId,mode ,focus})
             
             if (!data || !data.chat) {
                 console.error("No chat data received from server");
                 return;
             }
 
-            const { chat, aiMessage } = data
+            const { chat} = data
 
             // 2. If it was a new chat, swap temp ID for real ID
             if (isNewChat) {
@@ -46,17 +47,52 @@ export const useChat = () => {
                 activeChatId = chat._id;
             }
 
-            // 3. Add AI message
-            if (aiMessage) {
+            if (mode === "compare") {
+                if (data.geminiMessage) {
+                    dispatch(addNewMessage({
+                        chatId: activeChatId,
+                        content: data.geminiMessage.content,
+                        role: "gemini",
+                        focus: focus
+                    }))
+                }
+                if (data.mistralMessage) {
+                    dispatch(addNewMessage({
+                        chatId: activeChatId,
+                        content: data.mistralMessage.content,
+                        role: "mistral",
+                        focus: focus
+                    }))
+                }
+            } else if(mode === "debate"){
+                if (data.proMessage) {
+                    dispatch(addNewMessage({
+                        chatId: activeChatId,
+                        content: data.proMessage.content,
+                        role: "pro",
+                        focus: focus
+                    }))
+
+                }
+                if (data.conMessage) {
+                    dispatch(addNewMessage({
+                        chatId: activeChatId,
+                        content: data.conMessage.content,
+                        role: "con",
+                        focus: focus
+                    }))
+                }
+
+            }else if (data.aiMessage) {
                 dispatch(addNewMessage({
                     chatId: activeChatId,
-                    content: aiMessage.content,
-                    role: aiMessage.role,
+                    content: data.aiMessage.content,
+                    role: data.aiMessage.role || "ai",
+                    focus: focus
                 }))
             }
         } catch (error) {
             console.error("Failed to send message:", error)
-            // Optional: Handle cleanup of optimistic message on error
         } finally {
             dispatch(setLoading(false))
         }
@@ -97,6 +133,7 @@ export const useChat = () => {
                 const formattedMessages = messages.map(msg => ({
                     content: msg.content,
                     role: msg.role,
+                    focus: msg.focus || null
                 }))
 
                 dispatch(addMessages({
@@ -123,15 +160,23 @@ export const useChat = () => {
         dispatch(setCurrentChatId(null))
     }
 
+    async function handleLogout(){
+        await logout()
+        dispatch(setChats({}))
+        dispatch(setCurrentChatId(null))
+        dispatch(setUser(null))
+    }
+
     return {
         initializeSocketConnection,
         handleSendMessage,
         handleGetChats,
         handleOpenChat,
         handleDeleteChat,
-        handleNewChat
+        handleNewChat,
+        handleLogout
     }
 
 }
 
-
+

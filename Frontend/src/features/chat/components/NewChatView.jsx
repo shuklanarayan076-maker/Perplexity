@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Search, Globe, Image, Hash, ArrowUp, Plus } from 'lucide-react';
+import { Search, Globe, Image, Hash, ArrowUp, Plus, Newspaper, GraduationCap, MessagesSquare } from 'lucide-react';
 
-const NewChatView = ({ onSendMessage }) => {
+const NewChatView = ({ onSendMessage, mode, setMode, focus, setFocus }) => {
     const [input, setInput] = useState('');
 
     const handleSubmit = (e) => {
@@ -10,7 +10,7 @@ const NewChatView = ({ onSendMessage }) => {
         if (input.trim()) {
             const messageToSend = input.trim();
             setInput(''); // Clear immediately for instant reflection
-            onSendMessage(messageToSend);
+            onSendMessage(messageToSend, mode);
         }
     };
 
@@ -46,6 +46,30 @@ const NewChatView = ({ onSendMessage }) => {
                         onSubmit={handleSubmit}
                         className="relative glass-morphism p-2 rounded-[28px] shadow-2xl border-white/10 hover:border-white/20 transition-all focus-within:border-accent/40 focus-within:ring-4 focus-within:ring-accent/10"
                     >
+                        {/* Focus Mode Selector */}
+                        <div className="flex items-center gap-2 px-4 py-2 border-b border-white/5 mb-2">
+                            {[
+                                { id: 'web', label: 'Web', icon: Globe },
+                                { id: 'news', label: 'News', icon: Newspaper },
+                                { id: 'academic', label: 'Academic', icon: GraduationCap },
+                                { id: 'forums', label: 'Forums', icon: MessagesSquare },
+                            ].map((modeItem) => (
+                                <button
+                                    key={modeItem.id}
+                                    type="button"
+                                    onClick={() => setFocus(modeItem.id)}
+                                    className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-medium transition-all ${
+                                        focus === modeItem.id 
+                                            ? 'bg-accent/10 text-accent border border-accent/20' 
+                                            : 'text-text-muted hover:text-white hover:bg-white/5 border border-transparent'
+                                    }`}
+                                >
+                                    <modeItem.icon className="w-3.5 h-3.5" />
+                                    {modeItem.label}
+                                </button>
+                            ))}
+                        </div>
+
                         <textarea
                             rows={3}
                             value={input}
@@ -62,6 +86,29 @@ const NewChatView = ({ onSendMessage }) => {
                         
                         <div className="flex items-center justify-between px-4 pb-2">
                             <div className="flex items-center gap-1">
+                                <div className="flex bg-white/5 p-1 rounded-full border border-white/10 mr-2">
+                                    <button 
+                                        type="button"
+                                        onClick={() => setMode("normal")}
+                                        className={`px-3 py-1 text-xs font-semibold rounded-full transition-all ${mode === "normal" ? "bg-accent text-bg-secondary shadow-sm" : "text-text-muted hover:text-white"}`}
+                                    >
+                                        Normal
+                                    </button>
+                                    <button 
+                                        type="button"
+                                        onClick={() => setMode("compare")}
+                                        className={`px-3 py-1 text-xs font-semibold rounded-full transition-all ${mode === "compare" ? "bg-accent text-bg-secondary shadow-sm" : "text-text-muted hover:text-white"}`}
+                                    >
+                                        Compare
+                                    </button>
+                                    <button 
+                                        type="button"
+                                        onClick={() => setMode("debate")}
+                                        className={`px-3 py-1 text-xs font-semibold rounded-full transition-all ${mode === "debate" ? "bg-accent text-bg-secondary shadow-sm" : "text-text-muted hover:text-white"}`}
+                                    >
+                                        Debate
+                                    </button>
+                                </div>
                                 <button type="button" className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-text-muted hover:text-white hover:bg-white/5 rounded-full transition-all">
                                     <Globe className="w-3.5 h-3.5" />
                                     Focus

@@ -217,3 +217,16 @@ export async function ResendEmail(req,res){
      
 }
 
+export async function logout(req,res){
+    res.clearCookie("token",{
+        httpOnly:true,
+        sameSite:"strict",
+        secure:false
+    })
+
+    res.status(200).json({
+        message:"User logged out successfully",
+        success:true
+    })
+}
+

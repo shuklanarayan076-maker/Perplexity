@@ -20,12 +20,15 @@ const chatSlice = createSlice({
             
         },
         addNewMessage(state,action){
-            const {chatId,content,role} = action.payload
-            state.chats[chatId].messages.push({content,role})
+            const {chatId,content,role,focus} = action.payload
+            state.chats[chatId].messages.push({content,role,focus})
         },
         addMessages:(state,action)=>{
             const {chatId,messages} = action.payload
-            state.chats[chatId].messages.push(...messages)
+            state.chats[chatId].messages.push(...messages.map(msg => ({
+                ...msg,
+                focus: msg.focus || null
+            })))
         },
         setChats(state,action){
             state.chats = action.payload

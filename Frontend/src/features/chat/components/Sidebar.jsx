@@ -13,12 +13,12 @@ import {
 } from 'lucide-react';
 import { useSelector } from 'react-redux';
 
-const Sidebar = ({ onNewChat, onOpenChat, onDeleteChat, currentChatId }) => {
+const Sidebar = ({ onNewChat, onOpenChat, onDeleteChat, currentChatId, onLogout }) => {
     const chats = useSelector((state) => state.chat.chats);
     const user = useSelector((state) => state.auth.user);
 
     return (
-        <aside className="hidden md:flex flex-col w-[260px] h-screen bg-bg-secondary border-r border-border-subtle fixed left-0 top-0 z-20">
+        <aside className="hidden md:flex flex-col w-65 h-screen bg-bg-secondary border-r border-border-subtle fixed left-0 top-0 z-20">
             <div className="p-4 flex flex-col h-full">
                 {/* Logo & New Thread */}
                 <div className="space-y-4 mb-8">
@@ -106,7 +106,10 @@ const Sidebar = ({ onNewChat, onOpenChat, onDeleteChat, currentChatId }) => {
                         <Settings className="w-5 h-5" />
                         <span className="text-sm font-medium">Settings</span>
                     </button>
-                    <div className="flex items-center gap-3 px-4 py-3 bg-white/5 rounded-2xl mt-2 cursor-pointer hover:bg-white/10 transition-all border border-white/5">
+                    <div 
+                        onClick={onLogout}
+                        className="flex items-center gap-3 px-4 py-3 bg-white/5 rounded-2xl mt-2 cursor-pointer hover:bg-white/10 transition-all border border-white/5"
+                    >
                         <div className="w-8 h-8 rounded-full bg-gradient-to-br from-accent to-accent-hover flex items-center justify-center text-bg-secondary font-bold text-xs">
                             {user?.username?.charAt(0).toUpperCase() || 'U'}
                         </div>
