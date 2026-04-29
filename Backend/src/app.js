@@ -3,6 +3,7 @@ import cookieParser from "cookie-parser"
 import authRouter from "./routes/auth.route.js"
 import chatRouter from "./routes/chat.route.js"
 import morgan from "morgan"
+import passport from "./config/passport.js"
 import cors from "cors"
 import path from "path"
 import { fileURLToPath } from "url"
@@ -22,6 +23,7 @@ app.use(cors({
     credentials:true,
     methods:["GET","POST","PUT","DELETE"]
 }))
+app.use(passport.initialize())
 
 
 

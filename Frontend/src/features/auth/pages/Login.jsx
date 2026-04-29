@@ -5,6 +5,8 @@ import { useSelector } from 'react-redux';
 import { Navigate } from "react-router";
 import { motion } from 'framer-motion';
 import { Lock, Mail, ArrowRight } from 'lucide-react';
+import ContinueWithGoogle from '../components/ContinueWithGoogle';
+
 
 const Login = () => {
     const [ email, setEmail ] = useState('');
@@ -116,6 +118,13 @@ const Login = () => {
                             {!loading && <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />}
                         </motion.button>
                     </form>
+                    <div className="flex items-center gap-3">
+                        <div className="flex-1 h-px bg-white/10" />
+                        <span className="text-text-muted text-xs">or</span>
+                        <div className="flex-1 h-px bg-white/10" />
+                    </div>
+
+                    <ContinueWithGoogle />
 
                     <div className="text-center pt-2">
                         <p className="text-text-muted text-sm">

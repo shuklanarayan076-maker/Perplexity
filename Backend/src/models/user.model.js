@@ -17,8 +17,11 @@ const userSchema = new mongoose.Schema({
     },
     password:{
         type:String,
-        required:true,
-        minlength:6,
+        default:null,
+    },
+    googleId:{
+        type:String,
+        default:null
     },
     verified:{
         type:Boolean,
@@ -30,6 +33,7 @@ const userSchema = new mongoose.Schema({
 
 userSchema.pre('save',async function (){
     if(!this.isModified('password')) return 
+    if(!this.password) return 
         this.password = await bcrypt.hash(this.password,10)
 })
 

@@ -1,6 +1,5 @@
 import userModel from "../models/user.model.js"
 import jwt from "jsonwebtoken"
-import { sendEmail } from "../services/mail.service.js"
 
 
 export async function register(req, res) {
@@ -18,27 +17,7 @@ export async function register(req, res) {
         })
     }
 
-    const user = await userModel.create({ username, email, password })
-
-    const emailVerificationToken = jwt.sign({
-        email: user.email
-    }, process.env.JWT_SECRET)
-
-    // Send email without blocking the response
-    sendEmail({
-        to: email,
-        subject: "Welcome to Perplexity!",
-        html: `
-                     <p>Hi ${username},</p>
-                    <p>Thank you for registering at <strong>Perplexity</strong>. We're excited to have you on board!</p>
-                    <p>Please verify your email address by clicking the link below:</p>
-                    <a href="${process.env.FRONTEND_URL}/api/auth/verify-email?token=${emailVerificationToken}">Verify Email</a>
-                    <p>If you did not create an account, please ignore this email.</p>
-                    <p>Best regards,<br>The Perplexity Team</p>
-            `
-    }).catch(err => {
-        console.error("Error sending email:", err);
-    })
+    const user = await userModel.create({ username, email, password, verified: true })
 
     res.status(201).json({
         message: "User registered successfully",
@@ -50,14 +29,14 @@ export async function register(req, res) {
         }
     });
 
-}catch (err) {
+  }catch (err) {
         console.error("Register error:", err)
-
         return res.status(500).json({
             message: "Internal server error",
             success: false
         })
-    }}
+    }
+}
 
 export async function login(req, res) {
     const { email, password } = req.body
@@ -68,27 +47,15 @@ export async function login(req, res) {
             success: false,
             err: "User not found"
         })
-
     }
 
     const isPasswordMatch = await user.comparePassword(password)
-
     if (!isPasswordMatch) {
         return res.status(400).json({
             message: "Invalid email or password",
             success: false,
             err: "Password does not match"
         })
-
-    }
-
-    if (!user.verified) {
-        return res.status(400).json({
-            message: "Please verify your email",
-            success: false,
-            err: "Email not verified"
-        })
-
     }
 
     const token = jwt.sign({
@@ -97,10 +64,10 @@ export async function login(req, res) {
     }, process.env.JWT_SECRET, { expiresIn: "1d" })
 
     res.cookie("token", token, {
-    httpOnly: true,
-    secure: true,        // HTTPS required (Render pe hai ✔)
-    sameSite: "none"     // cross-origin ke liye
-})
+        httpOnly: true,
+        secure: true,
+        sameSite: "none"
+    })
 
     res.status(200).json({
         message: "User logged in successfully",
@@ -111,10 +78,6 @@ export async function login(req, res) {
             email: user.email
         }
     })
-
-
-
-
 }
 
 export async function getMe(req, res) {
@@ -126,7 +89,6 @@ export async function getMe(req, res) {
             success: false,
             err: "User not found"
         })
-
     }
 
     res.status(200).json({
@@ -134,116 +96,39 @@ export async function getMe(req, res) {
         success: true,
         user
     })
-
-
 }
 
-export async function verifyEmail(req, res) {
-    const { token } = req.query;
-
+export async function googleCallback(req, res) {
     try {
+        const user = req.user
 
+        const token = jwt.sign({
+            id: user._id,
+            username: user.username,
+        }, process.env.JWT_SECRET, { expiresIn: "1d" })
 
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
-
-        const user = await userModel.findOne({ email: decoded.email });
-
-        if (!user) {
-            return res.status(400).json({
-                message: "Invalid token",
-                success: false,
-                err: "User not found"
-            })
-        }
-
-
-
-        if (user.verified) {
-            const html = `  <h1>Email Already Verified</h1>
-            <p>Your email has already been verified. You can now log in to your account.</p>
-            <a href="${process.env.FRONTEND_URL}/login">Go to Login</a>`
-            return res.send(html)
-        }
-
-        user.verified = true;
-
-        await user.save();
-
-        const html =
-            `
-       <h1>Email Verified Successfully!</h1>
-        <p>Your email has been verified. You can now log in to your account.</p>
-        <a href="${process.env.FRONTEND_URL}/login">Go to Login</a>
-    `
-
-        return res.send(html);
-    } catch (err) {
-        return res.status(400).json({
-            message: "Invalid or expired token",
-            success: false,
-            err: err.message
-        })
-    }
-}
-
-export async function ResendEmail(req, res) {
-    const { email } = req.body
-    const user = await userModel.findOne({ email })
-    if (!user) {
-        return res.status(400).json({
-            message: "Invalid email",
-            success: false,
-            err: "User not found"
+        res.cookie("token", token, {
+            httpOnly: true,
+            secure: true,
+            sameSite: "none"
         })
 
+        res.redirect(`${process.env.FRONTEND_URL}`)
 
+    } catch(err) {
+        res.redirect(`${process.env.FRONTEND_URL}/login`)
     }
-
-    if (user.verified) {
-        return res.status(400).json({
-            message: "Email already verified",
-            success: false,
-            err: "Email already verified"
-        })
-    }
-
-    const emailVerificationToken = jwt.sign({
-        email: user.email
-    }, process.env.JWT_SECRET)
-
-
-    await sendEmail({
-        to: email,
-        subject: "Welcome to Battel Arena!",
-        html: `
-                  <p>Hi ${user.username},</p>
-                <p>Thank you for registering at <strong>Perplexity</strong>. We're excited to have you on board!</p>
-                <p>Please verify your email address by clicking the link below:</p>
-                <a href="${process.env.FRONTEND_URL}/api/auth/verify-email?token=${emailVerificationToken}">Verify Email</a>
-                <p>If you did not create an account, please ignore this email.</p>
-                <p>Best regards,<br>The Perplexity Team</p>
-                `
-    })
-
-    res.status(200).json({
-        message: "Email sent successfully",
-        success: true,
-    })
-
-
 }
 
 export async function logout(req, res) {
-   res.clearCookie("token", {
-    httpOnly: true,
-    sameSite: "none",
-    secure: true
-})
+    res.clearCookie("token", {
+        httpOnly: true,
+        sameSite: "none",
+        secure: true
+    })
 
     res.status(200).json({
         message: "User logged out successfully",
         success: true
     })
 }
-

@@ -4,6 +4,8 @@ import { useAuth } from '../hook/useAuth';
 import { useSelector } from 'react-redux';
 import { motion } from 'framer-motion';
 import { Lock, Mail, User, ArrowRight } from 'lucide-react';
+import ContinueWithGoogle from '../components/ContinueWithGoogle';
+
 
 const Register = () => {
     const [ username, setUsername ] = useState('');
@@ -119,6 +121,13 @@ const Register = () => {
                             {!loading && <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />}
                         </motion.button>
                     </form>
+                    <div className="flex items-center gap-3">
+    <div className="flex-1 h-px bg-white/10" />
+    <span className="text-text-muted text-xs">or</span>
+    <div className="flex-1 h-px bg-white/10" />
+</div>
+
+<ContinueWithGoogle />
 
                     <div className="text-center pt-2">
                         <p className="text-text-muted text-sm">
