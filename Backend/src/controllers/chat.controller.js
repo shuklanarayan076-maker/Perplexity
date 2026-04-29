@@ -31,6 +31,16 @@ export async function sendMessage(req,res){
 
         const messages = await messageModel.find({chat:chatId || chat._id})
 
+        // Helper function to finalize title if needed
+        const finalizeTitle = async () => {
+            if (titlePromise) {
+                const t = await titlePromise;
+                await chatModel.findByIdAndUpdate(chat._id, { title: t });
+                return t;
+            }
+            return chat.title;
+        };
+
          if (mode === "compare"){
             const results = await generateCompareResponse(messages,focus)
             const geminiMessage = await messageModel.create({
@@ -43,8 +53,9 @@ export async function sendMessage(req,res){
                 content: results.mistral,
                 role: "mistral"
             })
+            const finalTitle = await finalizeTitle();
             return res.status(201).json({
-                title,
+                title: finalTitle,
                 chat,
                 geminiMessage,
                 mistralMessage,
@@ -67,8 +78,9 @@ export async function sendMessage(req,res){
                 role: "con"
             })
 
+            const finalTitle = await finalizeTitle();
             return res.status(201).json({
-                title: await titlePromise,
+                title: finalTitle,
                 chat,
                 proMessage,
                 conMessage,
@@ -82,14 +94,8 @@ export async function sendMessage(req,res){
             content:result,
             role:"ai"
         })
-        console.log(messages)
-
-        // Wait for title if it was a new chat
-        let finalTitle = null;
-        if (titlePromise) {
-            finalTitle = await titlePromise;
-            await chatModel.findByIdAndUpdate(chat._id, { title: finalTitle });
-        }
+        
+        const finalTitle = await finalizeTitle();
 
         res.status(201).json({
             title: finalTitle,
