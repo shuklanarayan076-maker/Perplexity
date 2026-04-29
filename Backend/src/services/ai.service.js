@@ -19,33 +19,28 @@ const mistralModel = new ChatMistralAI({
 });
 
 // Tool definition for search
-const tools = [
-  {
-    name: "searchInternet",
-    description: "use this tool to get the latest information from the internet",
-    parameters: {
-      type: "object",
-      properties: {
-        query: { type: "string", description: "The search query" },
-        focus: { type: "string", enum: ["web", "news", "academic", "forums"], description: "Focus area" }
-      },
-      required: ["query"]
-    }
+const searchTool = {
+  name: "search_internet",
+  description: "Get the latest information from the internet.",
+  schema: {
+    type: "object",
+    properties: {
+      query: { type: "string", description: "The search query" },
+      focus: { type: "string", enum: ["web", "news", "academic", "forums"], description: "Focus area" }
+    },
+    required: ["query"]
   }
-];
+};
 
-// Bind tools to models
-const mainModelWithTools = mainModel.bind({
-  functions: tools,
-  function_call: "auto"
-});
+// Bind tools to model - Use the more stable bindTools method
+const modelWithTools = mainModel.bindTools([searchTool]);
 
 function formatMessages(messages, focus = "web") {
   return [
     new SystemMessage(
       `You are a helpful and precise assistant. 
       Current focus area: ${focus}.
-      If the user's question requires up-to-date info, use the searchInternet function.
+      If the user's question requires up-to-date info, use the search_internet tool.
       Always try to provide a comprehensive answer.`
     ),
     ...messages.map(msg => {
@@ -60,16 +55,17 @@ function formatMessages(messages, focus = "web") {
 export async function generateResponse(messages, focus = "web") {
   try {
     const formattedMessages = formatMessages(messages, focus);
-    const response = await mainModelWithTools.invoke(formattedMessages);
+    const response = await modelWithTools.invoke(formattedMessages);
 
-    // Handle tool calls
-    if (response.additional_kwargs.function_call) {
-      const { name, arguments: argsString } = response.additional_kwargs.function_call;
-      if (name === "searchInternet") {
-        const args = JSON.parse(argsString);
-        const searchResult = await searchInternet({ query: args.query, focus: args.focus || focus });
+    // Handle modern tool calls
+    if (response.tool_calls && response.tool_calls.length > 0) {
+      const toolCall = response.tool_calls[0];
+      if (toolCall.name === "search_internet") {
+        const searchResult = await searchInternet({ 
+          query: toolCall.args.query, 
+          focus: toolCall.args.focus || focus 
+        });
         
-        // Follow up with the search results
         const finalRes = await mainModel.invoke([
           ...formattedMessages,
           response,
@@ -106,7 +102,9 @@ export async function generateCompareResponse(messages, focus = "web") {
 
 export async function generateDebateResponse(messages, focus = "web") {
   try {
-    const userQuery = messages[messages.length - 1].content;
+    const lastMsg = messages[messages.length - 1];
+    const userQuery = lastMsg ? lastMsg.content : "";
+    
     const [proRes, conRes] = await Promise.all([
       mainModel.invoke([
         new SystemMessage(`You are a skilled debater. Focus: ${focus}. Argue strongly FOR the topic.`),
@@ -137,6 +135,6 @@ export async function generateChatTitle(message, focus = "web") {
     return response.content;
   } catch (error) {
     console.error("Title Generation Error:", error);
-    return "New Conversation"; // Safe fallback
+    return "New Conversation";
   }
 }
