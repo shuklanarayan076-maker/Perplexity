@@ -3,50 +3,31 @@ import { ChatMistralAI } from "@langchain/mistralai";
 import { ChatGroq } from "@langchain/groq";
 import { searchInternet } from "./internet.service.js";
 
+// Initialize models with explicit API keys
 const mainModel = new ChatGroq({
   model: "llama-3.3-70b-versatile",
-  apiKey: process.env.GROQ_API_KEY
+  apiKey: process.env.GROQ_API_KEY,
+  temperature: 0.7
 });
 
-const compareModel = new ChatGroq({
+const fastModel = new ChatGroq({
   model: "llama-3.1-8b-instant",
-  apiKey: process.env.GROQ_API_KEY
+  apiKey: process.env.GROQ_API_KEY,
+  temperature: 0.5
 });
 
 const mistralModel = new ChatMistralAI({
   model: "mistral-small-latest",
-  apiKey: process.env.MISTRAL_API_KEY
+  apiKey: process.env.MISTRAL_API_KEY,
+  temperature: 0.7
 });
-
-// Tool definition for search
-const searchTool = {
-  name: "search_internet",
-  description: "Get the latest information from the internet.",
-  schema: {
-    type: "object",
-    properties: {
-      query: { type: "string", description: "The search query" },
-      focus: { type: "string", enum: ["web", "news", "academic", "forums"], description: "Focus area" }
-    },
-    required: ["query"]
-  }
-};
-
-// Bind tools to model - Use the more stable bindTools method
-const modelWithTools = mainModel.bindTools([searchTool]);
 
 function formatMessages(messages, focus = "web") {
   return [
-    new SystemMessage(
-      `You are a helpful and precise assistant. 
-      Current focus area: ${focus}.
-      If the user's question requires up-to-date info, use the search_internet tool.
-      Always try to provide a comprehensive answer.`
-    ),
+    new SystemMessage(`You are a helpful AI assistant. Focus mode: ${focus}. Answer clearly and concisely.`),
     ...messages.map(msg => {
       if (msg.role === "user") return new HumanMessage(msg.content);
-      const aiRoles = ["ai", "gemini", "mistral", "pro", "con"];
-      if (aiRoles.includes(msg.role)) return new AIMessage(msg.content);
+      if (["ai", "gemini", "mistral", "pro", "con"].includes(msg.role)) return new AIMessage(msg.content);
       return null;
     }).filter(msg => msg !== null)
   ];
@@ -54,31 +35,35 @@ function formatMessages(messages, focus = "web") {
 
 export async function generateResponse(messages, focus = "web") {
   try {
-    const formattedMessages = formatMessages(messages, focus);
-    const response = await modelWithTools.invoke(formattedMessages);
+    const userQuery = messages[messages.length - 1].content;
+    const formatted = formatMessages(messages, focus);
 
-    // Handle modern tool calls
-    if (response.tool_calls && response.tool_calls.length > 0) {
-      const toolCall = response.tool_calls[0];
-      if (toolCall.name === "search_internet") {
-        const searchResult = await searchInternet({ 
-          query: toolCall.args.query, 
-          focus: toolCall.args.focus || focus 
-        });
-        
-        const finalRes = await mainModel.invoke([
-          ...formattedMessages,
-          response,
-          new HumanMessage(`Search Results: ${searchResult}\n\nBased on these results, please answer the user's original question.`)
-        ]);
-        return finalRes.content;
+    // 1. Check if we need search
+    const needsSearch = userQuery.length > 10; // Simple heuristic for speed
+    let searchContext = "";
+
+    if (needsSearch) {
+      try {
+        searchContext = await searchInternet({ query: userQuery, focus });
+      } catch (e) {
+        console.error("Search failed, proceeding without search:", e);
       }
     }
 
+    // 2. Generate final answer with context if available
+    const finalPrompt = searchContext 
+      ? `Information found on internet: ${searchContext}\n\nUser Question: ${userQuery}`
+      : userQuery;
+
+    const response = await mainModel.invoke([
+      ...formatted.slice(0, -1),
+      new HumanMessage(finalPrompt)
+    ]);
+
     return response.content;
   } catch (error) {
-    console.error("AI Generation Error:", error);
-    throw new Error(`AI Logic Error: ${error.message}`);
+    console.error("Critical AI Error:", error);
+    throw new Error("The AI service is currently overloaded. Please try again in a moment.");
   }
 }
 
@@ -96,21 +81,20 @@ export async function generateCompareResponse(messages, focus = "web") {
     };
   } catch (error) {
     console.error("Compare Error:", error);
-    throw new Error(`Compare Mode Error: ${error.message}`);
+    throw new Error("Comparison mode failed. Please try normal mode.");
   }
 }
 
 export async function generateDebateResponse(messages, focus = "web") {
   try {
     const formatted = formatMessages(messages, focus);
-    
     const [proRes, conRes] = await Promise.all([
       mainModel.invoke([
-        new SystemMessage(`You are a skilled debater in ${focus} mode. Your goal is to provide a strong, evidence-based argument FOR the user's position or the primary topic of this conversation. Be persuasive and structured.`),
-        ...formatted.slice(1) // Include all messages except the default system message
+        new SystemMessage(`Argue FOR the topic. Focus: ${focus}.`),
+        ...formatted.slice(1)
       ]),
-      compareModel.invoke([
-        new SystemMessage(`You are a skilled debater in ${focus} mode. Your goal is to provide a strong, evidence-based argument AGAINST the user's position or the primary topic of this conversation. Be critical, find flaws in the logic, and present the opposing viewpoint.`),
+      fastModel.invoke([
+        new SystemMessage(`Argue AGAINST the topic. Focus: ${focus}.`),
         ...formatted.slice(1)
       ])
     ]);
@@ -121,19 +105,18 @@ export async function generateDebateResponse(messages, focus = "web") {
     };
   } catch (error) {
     console.error("Debate Error:", error);
-    throw new Error(`Debate Mode Error: ${error.message}`);
+    throw new Error("Debate mode failed.");
   }
 }
 
 export async function generateChatTitle(message, focus = "web") {
   try {
-    const response = await compareModel.invoke([
-      new SystemMessage(`Generate a 2-4 word title for this chat. Focus: ${focus}.`),
+    const response = await fastModel.invoke([
+      new SystemMessage("Summarize this message in 2-3 words as a chat title."),
       new HumanMessage(message)
     ]);
-    return response.content;
+    return response.content.replace(/["']/g, "");
   } catch (error) {
-    console.error("Title Generation Error:", error);
     return "New Conversation";
   }
 }
