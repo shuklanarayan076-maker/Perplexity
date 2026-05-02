@@ -3,7 +3,7 @@ import React from 'react';
 const ContinueWithGoogle = () => {
   return (
     <a 
-      href="/api/auth/google"
+      href={`${import.meta.env.VITE_API_URL || ""}/api/auth/google`}
       className="flex items-center justify-center gap-3 bg-white border border-[#dadce0] rounded-sm py-3 px-4 transition-all duration-300 hover:bg-[#F8F9FA] hover:shadow-md active:bg-[#EEEEEE] group w-full"
     >
       <div className="flex items-center justify-center w-5 h-5">

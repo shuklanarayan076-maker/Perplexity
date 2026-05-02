@@ -126,3 +126,81 @@ export async function generateChatTitle(message, focus = "web") {
     return "New Conversation";
   }
 }
+
+export async function generateResearchResponse(question, emitProgress) {
+  
+  // STEP 1 — Planner
+  emitProgress("🧠 Planning research strategy...")
+  
+  const plannerRes = await mainModel.invoke([
+    new SystemMessage(`You are a research planner.
+      Break the user's question into exactly 3 specific sub-questions.
+      Return ONLY a JSON array with 3 strings. No explanation. No markdown.
+      Example: ["sub question 1", "sub question 2", "sub question 3"]`),
+    new HumanMessage(question)
+  ])
+
+  let subQuestions = []
+  try {
+    subQuestions = JSON.parse(plannerRes.content)
+  } catch {
+    subQuestions = [
+      question,
+      question + " latest developments",
+      question + " future implications"
+    ]
+  }
+
+  emitProgress("🔍 Searching across multiple sources...")
+
+  // STEP 2 — 3 Researchers in parallel
+  const researchPromises = subQuestions.map(async (subQ) => {
+    let searchContext = ""
+    try {
+      searchContext = await searchInternet({ query: subQ, focus: "web" })
+    } catch (e) {
+      console.error("Search failed for subQ:", subQ)
+    }
+
+    const res = await mainModel.invoke([
+      new SystemMessage(`You are a research agent.
+        Based on the search results provided, give a detailed factual summary.
+        Be concise and accurate.`),
+      new HumanMessage(
+        searchContext
+          ? `Search results: ${searchContext}\n\nQuestion: ${subQ}`
+          : subQ
+      )
+    ])
+
+    return {
+      subQuestion: subQ,
+      finding: res.content
+    }
+  })
+
+  const findings = await Promise.all(researchPromises)
+
+  emitProgress("✍️ Synthesizing final answer...")
+
+  // STEP 3 — Synthesizer
+  const synthesisInput = findings.map((f, i) =>
+    `Sub-question ${i + 1}: ${f.subQuestion}\nFindings: ${f.finding}`
+  ).join("\n\n---\n\n")
+
+  const synthRes = await mainModel.invoke([
+    new SystemMessage(`You are a research synthesizer.
+      Combine research findings into one comprehensive, well-structured answer.
+      Use clear headings for each section.
+      Be thorough but concise.`),
+    new HumanMessage(
+      `Original question: ${question}\n\nResearch findings:\n${synthesisInput}`
+    )
+  ])
+
+  return {
+    subQuestions,
+    findings,
+    finalAnswer: synthRes.content
+  }
+}

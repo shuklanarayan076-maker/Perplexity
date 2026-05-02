@@ -14,11 +14,10 @@ async (accessToken, refreshToken, profile, done) => {
 
         if(user) return done(null, user)
 
-        // Email se bhi check karo
+    
         user = await userModel.findOne({ email: profile.emails[0].value })
 
         if(user){
-            // Existing user ko Google se link karo
             user.googleId = profile.id
             user.verified = true
             await user.save()

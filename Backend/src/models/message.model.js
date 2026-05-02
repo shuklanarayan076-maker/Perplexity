@@ -13,7 +13,7 @@ const messageSchema = new mongoose.Schema(
         },
         role: {
             type: String,
-            enum: ["user", "ai", "gemini", "mistral", "pro", "con"],
+            enum: ["user", "ai", "gemini", "mistral", "pro", "con","research"],
             required: true
         },
         focus: {

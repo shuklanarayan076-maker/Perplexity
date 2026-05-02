@@ -41,6 +41,74 @@ const Typewriter = ({ text, speed = 10, onComplete }) => {
     );
 };
 
+const ResearchCard = ({ content }) => {
+    const lines = content.split('\n');
+    const subQuestions = lines.filter(l => l.trim() && l.match(/^\d+\./));
+
+    return (
+        <div className="w-full bg-linear-to-br from-purple-500/10 to-blue-500/10 border border-purple-500/20 rounded-3xl p-6 shadow-xl shadow-purple-500/5 mb-8">
+            <div className="flex items-center gap-3 mb-4 border-b border-white/5 pb-4">
+                <div className="w-10 h-10 rounded-full bg-purple-500/20 text-purple-400 flex items-center justify-center shadow-lg shadow-purple-500/20">
+                    <Search className="w-5 h-5" />
+                </div>
+                <div>
+                    <h3 className="text-lg font-bold text-white tracking-tight">🔬 AI Research Pipeline</h3>
+                    <p className="text-xs text-text-muted font-medium uppercase tracking-widest">Multi-source knowledge synthesis</p>
+                </div>
+            </div>
+            <div className="space-y-3">
+                <p className="text-sm font-bold text-purple-300/80 uppercase tracking-wider">Sub-questions explored:</p>
+                <ul className="space-y-2.5">
+                    {subQuestions.map((q, i) => (
+                        <li key={i} className="flex gap-3 text-[15px] text-white/90 leading-relaxed bg-white/5 p-3 rounded-xl border border-white/5 hover:border-purple-500/20 transition-all">
+                            <span className="text-purple-400 font-bold">{i + 1}.</span>
+                            <span>{q.replace(/^\d+\.\s*/, '')}</span>
+                        </li>
+                    ))}
+                </ul>
+            </div>
+        </div>
+    );
+};
+
+const LoadingState = ({ mode }) => {
+    const [step, setStep] = useState(0);
+    const steps = {
+        normal: ["Searching the web...", "Generating answer..."],
+        research: ["🧠 Planning research...", "🔍 Searching sources...", "✍️ Synthesizing answer..."],
+        compare: ["Running both models in parallel..."],
+        debate: ["Preparing arguments..."]
+    };
+    
+    const currentSteps = steps[mode] || steps.normal;
+    
+    useEffect(() => {
+        if (currentSteps.length > 1) {
+            const interval = setInterval(() => {
+                setStep(prev => (prev + 1) % currentSteps.length);
+            }, 2500);
+            return () => clearInterval(interval);
+        }
+    }, [currentSteps]);
+
+    return (
+        <motion.div 
+            initial={{ opacity: 0, x: -10 }}
+            animate={{ opacity: 1, x: 0 }}
+            className="flex items-center gap-4 text-accent font-medium"
+        >
+            <div className="flex gap-1.5">
+                <div className="w-2 h-2 bg-accent rounded-full animate-bounce" />
+                <div className="w-2 h-2 bg-accent rounded-full animate-bounce [animation-delay:-0.15s]" />
+                <div className="w-2 h-2 bg-accent rounded-full animate-bounce [animation-delay:-0.3s]" />
+            </div>
+            <span className="text-sm tracking-widest uppercase font-black bg-accent/10 px-3 py-1 rounded-lg border border-accent/20">
+                {currentSteps[step]}
+            </span>
+        </motion.div>
+    );
+};
+
 const ChatInterface = ({ messages, onSendMessage, isLoading, mode, setMode, focus, setFocus }) => {
     const [input, setInput] = useState('');
     const messagesEndRef = useRef(null);
@@ -79,12 +147,16 @@ const ChatInterface = ({ messages, onSendMessage, isLoading, mode, setMode, focu
         
         if (message.role === 'user') {
             return (
-                <div className="bg-blue-600 text-white px-5 py-3.5 rounded-3xl rounded-tr-sm shadow-sm inline-block">
+                <div className="bg-blue-600 text-white px-5 py-3.5 rounded-3xl rounded-tr-sm shadow-sm inline-block max-w-[85%] md:max-w-[70%]">
                     <h3 className="text-[15px] leading-relaxed">
                         {message.content}
                     </h3>
                 </div>
             );
+        }
+
+        if (message.role === 'research') {
+            return <ResearchCard content={message.content} />;
         }
 
         return (
@@ -132,11 +204,11 @@ const ChatInterface = ({ messages, onSendMessage, isLoading, mode, setMode, focu
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.4 }}
                         key={`compare-${i}`}
-                        className="w-full space-y-6"
+                        className="w-full space-y-6 mb-12"
                     >
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             {/* Gemini Panel */}
-                            <div className="flex flex-col gap-4 p-6 rounded-3xl bg-white/5 border border-white/10 shadow-sm">
+                            <div className="flex flex-col gap-4 p-6 rounded-3xl bg-white/5 border border-white/10 shadow-sm hover:border-blue-500/30 transition-all">
                                 <div className="flex items-center justify-between mb-2">
                                     <div className="flex items-center gap-2">
                                         <div className="w-6 h-6 rounded-full bg-blue-500/20 text-blue-400 flex items-center justify-center text-[10px] font-bold border border-blue-500/20 shadow-sm shadow-blue-500/10">L</div>
@@ -148,7 +220,7 @@ const ChatInterface = ({ messages, onSendMessage, isLoading, mode, setMode, focu
                             </div>
 
                             {/* Mistral Panel */}
-                            <div className="flex flex-col gap-4 p-6 rounded-3xl bg-white/5 border border-white/10 shadow-sm">
+                            <div className="flex flex-col gap-4 p-6 rounded-3xl bg-white/5 border border-white/10 shadow-sm hover:border-orange-500/30 transition-all">
                                 <div className="flex items-center justify-between mb-2">
                                     <div className="flex items-center gap-2">
                                         <div className="w-6 h-6 rounded-full bg-orange-500/20 text-orange-400 flex items-center justify-center text-[10px] font-bold border border-orange-500/20 shadow-sm shadow-orange-500/10">L</div>
@@ -174,31 +246,33 @@ const ChatInterface = ({ messages, onSendMessage, isLoading, mode, setMode, focu
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.4 }}
                         key={`debate-${i}`}
-                        className="w-full space-y-6"
+                        className="w-full space-y-6 mb-12"
                     >
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             {/* Pro Panel */}
-                            <div className="flex flex-col gap-4 p-6 rounded-3xl bg-green-500/5 border border-green-500/20 shadow-sm">
-                                <div className="flex items-center justify-between mb-2">
+                            <div className="flex flex-col gap-4 p-0 rounded-3xl bg-green-500/5 border border-green-500/20 shadow-sm overflow-hidden">
+                                <div className="bg-green-500/10 px-6 py-3 border-b border-green-500/20 flex items-center justify-between">
                                     <div className="flex items-center gap-2">
-                                        <div className="w-6 h-6 rounded-full bg-green-500/20 text-green-400 flex items-center justify-center text-[10px] font-bold border border-green-500/20 shadow-sm shadow-green-500/10">P</div>
-                                        <span className="text-xs font-bold uppercase tracking-widest text-green-400/80">🟢 PRO</span>
+                                        <span className="text-xs font-black uppercase tracking-[0.2em] text-green-400">PRO ✅</span>
                                     </div>
                                     <FocusBadge focus={current.focus} />
                                 </div>
-                                {renderMessageContent(current, isLastPair)}
+                                <div className="p-6">
+                                    {renderMessageContent(current, isLastPair)}
+                                </div>
                             </div>
 
                             {/* Con Panel */}
-                            <div className="flex flex-col gap-4 p-6 rounded-3xl bg-red-500/5 border border-red-500/20 shadow-sm">
-                                <div className="flex items-center justify-between mb-2">
+                            <div className="flex flex-col gap-4 p-0 rounded-3xl bg-red-500/5 border border-red-500/20 shadow-sm overflow-hidden">
+                                <div className="bg-red-500/10 px-6 py-3 border-b border-red-500/20 flex items-center justify-between">
                                     <div className="flex items-center gap-2">
-                                        <div className="w-6 h-6 rounded-full bg-red-500/20 text-red-400 flex items-center justify-center text-[10px] font-bold border border-red-500/20 shadow-sm shadow-red-500/10">C</div>
-                                        <span className="text-xs font-bold uppercase tracking-widest text-red-400/80">🔴 CON</span>
+                                        <span className="text-xs font-black uppercase tracking-[0.2em] text-red-400">CON ❌</span>
                                     </div>
                                     <FocusBadge focus={next.focus} />
                                 </div>
-                                {renderMessageContent(next, isLastPair)}
+                                <div className="p-6">
+                                    {renderMessageContent(next, isLastPair)}
+                                </div>
                             </div>
                         </div>
                     </motion.div>
@@ -207,7 +281,7 @@ const ChatInterface = ({ messages, onSendMessage, isLoading, mode, setMode, focu
                 continue;
             }
 
-            // Single Message (User or Normal AI)
+            // Single Message (User or Normal AI or Research)
             const isLastMessage = i === messages.length - 1;
             elements.push(
                 <motion.div
@@ -218,16 +292,14 @@ const ChatInterface = ({ messages, onSendMessage, isLoading, mode, setMode, focu
                     className="space-y-4 max-w-full"
                 >
                     <div className={`flex items-start gap-4 ${current.role === 'user' ? 'flex-row-reverse' : ''}`}>
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${
-                            current.role === 'user' 
-                                ? 'hidden' 
-                                : 'bg-accent/20 text-accent border border-accent/20 shadow-sm shadow-accent/5'
-                        }`}>
-                            {current.role === 'user' ? 'U' : 'P'}
-                        </div>
-                        <div className={`flex flex-col space-y-4 ${current.role === 'user' ? 'items-end' : 'flex-1 min-w-0'}`}>
+                        {current.role !== 'user' && current.role !== 'research' && (
+                            <div className="w-8 h-8 rounded-full bg-accent/20 text-accent flex items-center justify-center shrink-0 border border-accent/20 shadow-sm shadow-accent/5">
+                                P
+                            </div>
+                        )}
+                        <div className={`flex flex-col space-y-4 ${current.role === 'user' ? 'items-end w-full' : 'flex-1 min-w-0'}`}>
                             {['ai', 'gemini', 'mistral', 'pro', 'con'].includes(current.role) && (
-                                <div className="mb-2">
+                                <div className="mb-1">
                                     <FocusBadge focus={current.focus} />
                                 </div>
                             )}
@@ -235,7 +307,7 @@ const ChatInterface = ({ messages, onSendMessage, isLoading, mode, setMode, focu
                         </div>
                     </div>
                     {['ai', 'gemini', 'mistral', 'pro', 'con'].includes(current.role) && (
-                        <div className="flex items-center gap-4 ml-12 pt-2">
+                        <div className="flex items-center gap-4 ml-12 pt-2 pb-8">
                             <button className="text-xs text-text-muted hover:text-white transition-colors flex items-center gap-1.5">
                                 <MoreHorizontal className="w-4 h-4" />
                                 Related
@@ -253,7 +325,7 @@ const ChatInterface = ({ messages, onSendMessage, isLoading, mode, setMode, focu
             {/* Header / Actions */}
             <div className="h-16 flex items-center justify-between px-6 border-b border-border-subtle bg-bg-primary/80 backdrop-blur-md sticky top-0 z-10 w-full">
                 <div className="flex items-center gap-4">
-                    <h2 className="text-sm font-semibold truncate max-w-50 md:max-w-md">
+                    <h2 className="text-sm font-semibold truncate max-w-50 md:max-w-md text-white/90">
                         {messages[0]?.content.substring(0, 40) || "New Thread"}...
                     </h2>
                 </div>
@@ -268,18 +340,11 @@ const ChatInterface = ({ messages, onSendMessage, isLoading, mode, setMode, focu
             </div>
 
             {/* Messages Area */}
-            <div className="flex-1 overflow-y-auto custom-scrollbar px-6 py-8 space-y-12 pb-40 w-full">
+            <div className="flex-1 overflow-y-auto custom-scrollbar px-6 py-8 space-y-8 pb-40 w-full">
                 {renderMessages()}
                 {isLoading && (
-                    <div className="flex items-start gap-4 ml-0">
-                        <div className="w-8 h-8 rounded-full bg-accent/20 text-accent flex items-center justify-center animate-pulse">
-                            P
-                        </div>
-                        <div className="flex gap-1 pt-3">
-                            <div className="w-1.5 h-1.5 bg-accent rounded-full animate-bounce" />
-                            <div className="w-1.5 h-1.5 bg-accent rounded-full animate-bounce [animation-delay:-0.15s]" />
-                            <div className="w-1.5 h-1.5 bg-accent rounded-full animate-bounce [animation-delay:-0.3s]" />
-                        </div>
+                    <div className="flex items-start gap-4 py-4">
+                        <LoadingState mode={mode} />
                     </div>
                 )}
                 <div ref={messagesEndRef} />
@@ -303,9 +368,10 @@ const ChatInterface = ({ messages, onSendMessage, isLoading, mode, setMode, focu
                                 key={modeItem.id}
                                 type="button"
                                 onClick={() => setFocus(modeItem.id)}
-                                className={`flex-shrink-0 flex items-center gap-2 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all snap-start ${  focus === modeItem.id 
-                                        ? 'bg-accent text-bg-secondary border border-accent shadow-lg shadow-accent/20' 
-                                        : 'text-text-muted hover:text-white hover:bg-white/10 border border-white/10'
+                                className={`flex-shrink-0 flex items-center gap-2 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all snap-start border-2 ${
+                                    focus === modeItem.id 
+                                        ? 'bg-accent/10 text-accent border-accent shadow-lg shadow-accent/20' 
+                                        : 'text-text-muted hover:text-white hover:bg-white/10 border-white/10'
                                 }`}
                             >
                                 <modeItem.icon className="w-3.5 h-3.5" />
@@ -336,21 +402,28 @@ const ChatInterface = ({ messages, onSendMessage, isLoading, mode, setMode, focu
                                     onClick={() => setMode("normal")}
                                     className={`px-3 py-1 text-[10px] uppercase tracking-wider font-bold rounded-full transition-all ${mode === "normal" ? "bg-accent text-bg-secondary shadow-sm" : "text-text-muted hover:text-white"}`}
                                 >
-                                    Normal
+                                    💬 Normal
                                 </button>
                                 <button 
                                     type="button"
                                     onClick={() => setMode("compare")}
                                     className={`px-3 py-1 text-[10px] uppercase tracking-wider font-bold rounded-full transition-all ${mode === "compare" ? "bg-accent text-bg-secondary shadow-sm" : "text-text-muted hover:text-white"}`}
                                 >
-                                    Compare
+                                    ⚖️ Compare
                                 </button>
                                 <button 
                                     type="button"
                                     onClick={() => setMode("debate")}
                                     className={`px-3 py-1 text-[10px] uppercase tracking-wider font-bold rounded-full transition-all ${mode === "debate" ? "bg-accent text-bg-secondary shadow-sm" : "text-text-muted hover:text-white"}`}
                                 >
-                                    Debate
+                                    🥊 Debate
+                                </button>
+                                <button 
+                                    type="button"
+                                    onClick={() => setMode("research")}
+                                    className={`px-3 py-1 text-[10px] uppercase tracking-wider font-bold rounded-full transition-all ${mode === "research" ? "bg-accent text-bg-secondary shadow-sm" : "text-text-muted hover:text-white"}`}
+                                >
+                                    🔬 Research
                                 </button>
                             </div>
                             <button type="button" className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-full transition-all ${focus && focus !== 'web' ? 'bg-accent/10 text-accent border border-accent/20 shadow-sm' : 'text-text-muted hover:text-white hover:bg-white/5 border border-transparent'}`}>

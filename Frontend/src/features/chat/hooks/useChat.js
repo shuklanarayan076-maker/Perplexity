@@ -66,7 +66,7 @@ export const useChat = () => {
                         isNew: true
                     }))
                 }
-            } else if(mode === "debate"){
+            } else if (mode === "debate") {
                 if (data.proMessage) {
                     dispatch(addNewMessage({
                         chatId: activeChatId,
@@ -75,7 +75,6 @@ export const useChat = () => {
                         focus: focus,
                         isNew: true
                     }))
-
                 }
                 if (data.conMessage) {
                     dispatch(addNewMessage({
@@ -86,8 +85,26 @@ export const useChat = () => {
                         isNew: true
                     }))
                 }
-
-            }else if (data.aiMessage) {
+            } else if (mode === "research") {
+                if (data.subQuestions) {
+                    dispatch(addNewMessage({
+                        chatId: activeChatId,
+                        content: `🔍 Research Pipeline:\n${data.subQuestions.map((q, i) => `${i + 1}. ${q}`).join("\n")}`,
+                        role: "research",
+                        focus: focus,
+                        isNew: true
+                    }))
+                }
+                if (data.finalMessage) {
+                    dispatch(addNewMessage({
+                        chatId: activeChatId,
+                        content: data.finalMessage.content,
+                        role: "ai",
+                        focus: focus,
+                        isNew: true
+                    }))
+                }
+            } else if (data.aiMessage) {
                 dispatch(addNewMessage({
                     chatId: activeChatId,
                     content: data.aiMessage.content,
